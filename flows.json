@@ -1,0 +1,455 @@
+[
+    {
+        "id": "94fdb0aca9700adc",
+        "type": "tab",
+        "label": "플로우 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "e661a069df99376d",
+        "type": "function",
+        "z": "94fdb0aca9700adc",
+        "name": "function 1",
+        "func": "// ✅ 미세먼지 기준값 설정\nconst THRESHOLD = 20;\n\n// 현재 상태, 미세먼지\nlet state = msg.payload.d?.state;\nlet dust = msg.payload.d?.dust;\n\n// 이전 상태 및 저장된 값 가져오기\nlet prevState = flow.get(\"prevState\") ?? \"안에 있음\";\nlet currentDust = flow.get(\"currentDust\") ?? -1;\n\nif (dust !== undefined) {\n    currentDust = dust;\n    flow.set(\"currentDust\", currentDust);\n}\n\n// 모터 상태 초기화\nlet dcMotor = \"off\";\nlet subMotor = \"off\";\n\n// ✅ 서보모터 2회 작동 로직 (밖에 있음 진입 시)\nif (state === \"밖에 있음\" && prevState !== \"밖에 있음\") {\n    subMotor = \"on\";\n    flow.set(\"servoTriggerCount\", 1);\n    flow.set(\"servoStartTime\", Date.now());\n    flow.set(\"servoInProgress\", true);\n    flow.set(\"dcReady\", false);  // 서보가 끝나기 전까지 dc 모터 금지\n}\n\n// ✅ 서보모터 5초 후 2회차 작동\nif (flow.get(\"servoInProgress\") === true) {\n    let startTime = flow.get(\"servoStartTime\");\n    let count = flow.get(\"servoTriggerCount\");\n\n    if (Date.now() - startTime >= 5000 && count === 1) {\n        subMotor = \"on\";\n        flow.set(\"servoTriggerCount\", 2);\n    } else {\n        subMotor = \"off\";\n    }\n\n    // 2회차 이후 DC모터 작동 허용\n    if (count === 2) {\n        flow.set(\"servoInProgress\", false);\n        flow.set(\"dcReady\", true);\n    }\n}\n\n// ✅ DC 모터 제어\nlet dcReady = flow.get(\"dcReady\") ?? false;\n\nif (state === \"안에 있음\") {\n    // 안에 있을 때는 언제든지 dust 기준 이상이면 ON\n    dcMotor = (currentDust >= THRESHOLD) ? \"on\" : \"off\";\n} else if (state === \"밖에 있음\" && dcReady) {\n    // 밖에 있으면서 서보모터 완료된 후에만 작동\n    dcMotor = (currentDust >= THRESHOLD) ? \"on\" : \"off\";\n}\n\n// ✅ 상태 저장 및 디버깅 출력\nflow.set(\"prevState\", state);\nnode.warn(`STATE=${state}, DUST=${currentDust}, DC=${dcMotor}, SUB=${subMotor}, READY=${dcReady}`);\n\n// ✅ 메시지 반환\nlet dcMsg = { payload: { d: { dcmotor: dcMotor } } };\nlet servoMsg = { payload: { d: { submotor: subMotor } } };\nreturn [dcMsg, servoMsg];\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 740,
+        "y": 460,
+        "wires": [
+            [
+                "6397c76587edf394",
+                "0ed720904b39b1a1"
+            ],
+            [
+                "5c0b8beb6a559192",
+                "07274099c424064b"
+            ]
+        ]
+    },
+    {
+        "id": "6397c76587edf394",
+        "type": "io7 out",
+        "z": "94fdb0aca9700adc",
+        "authentication": "836977ff7b861b01",
+        "name": "dcmotor",
+        "deviceId": "dcmotor",
+        "cmd": "",
+        "fmt": "json",
+        "qos": "0",
+        "retain": "false",
+        "x": 1040,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "5c0b8beb6a559192",
+        "type": "io7 out",
+        "z": "94fdb0aca9700adc",
+        "authentication": "836977ff7b861b01",
+        "name": "submotor",
+        "deviceId": "submotor",
+        "cmd": "",
+        "fmt": "json",
+        "qos": "0",
+        "retain": "false",
+        "x": 1040,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "07274099c424064b",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1040,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "0ed720904b39b1a1",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 2",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1040,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "8f9093cf79e0d5cd",
+        "type": "io7 in",
+        "z": "94fdb0aca9700adc",
+        "name": "dust01",
+        "deviceId": "dust01",
+        "authentication": "836977ff7b861b01",
+        "evt": "+",
+        "fmt": "json",
+        "qos": "0",
+        "allDevices": false,
+        "allEvents": true,
+        "allFormats": false,
+        "x": 310,
+        "y": 240,
+        "wires": [
+            [
+                "63d60168f33d47ed",
+                "7c84aff02821708b",
+                "666a861421b107cf"
+            ]
+        ]
+    },
+    {
+        "id": "63d60168f33d47ed",
+        "type": "ui_gauge",
+        "z": "94fdb0aca9700adc",
+        "name": "",
+        "group": "dda5b50dd79b358e",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "gauge",
+        "label": "units",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 10,
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 510,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "39b696acade05633",
+        "type": "io7 in",
+        "z": "94fdb0aca9700adc",
+        "name": "sr04",
+        "deviceId": "sr04",
+        "authentication": "836977ff7b861b01",
+        "evt": "+",
+        "fmt": "json",
+        "qos": "0",
+        "allDevices": false,
+        "allEvents": true,
+        "allFormats": false,
+        "x": 310,
+        "y": 400,
+        "wires": [
+            [
+                "448ae54304de8f84",
+                "1ee7b85dec129dcc"
+            ]
+        ]
+    },
+    {
+        "id": "448ae54304de8f84",
+        "type": "function",
+        "z": "94fdb0aca9700adc",
+        "name": "function 2",
+        "func": "// 초음파 센서 존재 여부\nlet current = msg.payload.d.exist;\nlet previous = flow.get(\"sr04_prev\") ?? 1;\nlet count = flow.get(\"sr04_count\") ?? 0;\nlet now = Date.now();\nlet lastToggle = flow.get(\"last_toggle_time\") ?? 0;\n\n// 전이 감지 (1 → 0): 사람 나감\nif (previous === 1 && current === 0 && (now - lastToggle > 3000)) {\n    count += 1;\n    flow.set(\"sr04_count\", count);\n    flow.set(\"last_toggle_time\", now);\n}\n\n// 현재 상태 결정\nlet currentState = (count % 2 === 0) ? \"안에 있음\" : \"밖에 있음\";\nflow.set(\"sr04_prev\", current);\nflow.set(\"sr04_state\", currentState);\nflow.set(\"sr04_lastDetectedTime\", now);\n\n// 최근 미세먼지 값 불러오기\nlet dust = flow.get(\"currentDust\");\n\n// 상태 + 미세먼지 값 포함\nlet payloadData = {\n    state: currentState\n};\n\nif (dust !== undefined) {\n    payloadData.dust = dust;\n}\n\nmsg.payload = { d: payloadData };\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 500,
+        "y": 460,
+        "wires": [
+            [
+                "207f7333c38dca1a",
+                "31e1d4bcd1604868",
+                "e661a069df99376d"
+            ]
+        ]
+    },
+    {
+        "id": "207f7333c38dca1a",
+        "type": "ui_text",
+        "z": "94fdb0aca9700adc",
+        "group": "0daa733af8f77da8",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "text",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 710,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "31e1d4bcd1604868",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 720,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "1ee7b85dec129dcc",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 4",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 500,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "ece75220dbe56bff",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 5",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "edb73acb724eef43",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 6",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 540,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "b7b877559009e885",
+        "type": "io7 in",
+        "z": "94fdb0aca9700adc",
+        "name": "dcmotor",
+        "deviceId": "dcmotor",
+        "authentication": "836977ff7b861b01",
+        "evt": "+",
+        "fmt": "json",
+        "qos": "0",
+        "allDevices": false,
+        "allEvents": true,
+        "allFormats": false,
+        "x": 320,
+        "y": 640,
+        "wires": [
+            [
+                "edb73acb724eef43"
+            ]
+        ]
+    },
+    {
+        "id": "1fcc784abd9716f6",
+        "type": "io7 in",
+        "z": "94fdb0aca9700adc",
+        "name": "submotor",
+        "deviceId": "submotor",
+        "authentication": "836977ff7b861b01",
+        "evt": "+",
+        "fmt": "json",
+        "qos": "0",
+        "allDevices": false,
+        "allEvents": true,
+        "allFormats": false,
+        "x": 320,
+        "y": 700,
+        "wires": [
+            [
+                "ece75220dbe56bff"
+            ]
+        ]
+    },
+    {
+        "id": "7c84aff02821708b",
+        "type": "function",
+        "z": "94fdb0aca9700adc",
+        "name": "function 3",
+        "func": "let dust = msg.payload.d?.dust;\nflow.set(\"currentDust\", dust);\nnode.warn(\"현재 미세먼지 저장됨: \" + dust);\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 280,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "666a861421b107cf",
+        "type": "debug",
+        "z": "94fdb0aca9700adc",
+        "name": "debug 7",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 520,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "c7e38abfd5c81aba",
+        "type": "inject",
+        "z": "94fdb0aca9700adc",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{   \"d\": {     \"dust\": 1   } }",
+        "payloadType": "json",
+        "x": 290,
+        "y": 320,
+        "wires": [
+            [
+                "7c84aff02821708b"
+            ]
+        ]
+    },
+    {
+        "id": "c33064b41275a6f1",
+        "type": "inject",
+        "z": "94fdb0aca9700adc",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{ \"d\": { \"state\": \"안에 있음\" } }",
+        "payloadType": "json",
+        "x": 290,
+        "y": 500,
+        "wires": [
+            [
+                "448ae54304de8f84"
+            ]
+        ]
+    },
+    {
+        "id": "836977ff7b861b01",
+        "type": "io7-hub",
+        "name": "",
+        "host": "mqtt",
+        "useTLS": false,
+        "knownPort": true,
+        "port": "1883",
+        "tls": "",
+        "clientid": ""
+    },
+    {
+        "id": "dda5b50dd79b358e",
+        "type": "ui_group",
+        "name": "Dust",
+        "tab": "7e69b70f5a18025c",
+        "order": 4,
+        "disp": true,
+        "width": 4,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "0daa733af8f77da8",
+        "type": "ui_group",
+        "name": "state",
+        "tab": "7e69b70f5a18025c",
+        "order": 6,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "7e69b70f5a18025c",
+        "type": "ui_tab",
+        "name": "Home",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]
